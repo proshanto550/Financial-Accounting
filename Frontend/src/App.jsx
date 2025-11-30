@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import './App.css';
 import { Sun, Moon, Zap, LogOut } from 'lucide-react';
 import Footer from './components/Footer';
+import api from './api'; // Import API
 
 // Import Components
 import AuthPage from './components/AuthPage';
@@ -13,67 +15,136 @@ import GeneralLedger from './components/GeneralLedger';
 import TrialBalance from './components/TrialBalance';
 import IncomeStatement from './components/IncomeStatement';
 import BalanceSheet from './components/BalanceSheet';
-// import { Footer } from './components/Utils';
 
-// Main Component
 const SmartAccountingManager = () => {
-  // Theme State
+  const { username: urlUsername } = useParams();
+  const navigate = useNavigate();
+
   const [theme, setTheme] = useState('dark');
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
-  // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
 
-  // App State
   const [activeTab, setActiveTab] = useState('dashboard');
   const [journalEntries, setJournalEntries] = useState([]);
   const [adjustingEntries, setAdjustingEntries] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+
   const [showJournalForm, setShowJournalForm] = useState(false);
   const [showAdjustingForm, setShowAdjustingForm] = useState(false);
-  const [editingEntry, setEditingEntry] = useState(null); // <-- NEW: State for the entry being edited
+  const [editingEntry, setEditingEntry] = useState(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
-  const [accounts, setAccounts] = useState([
-    { id: 1, code: '1000', name: 'Cash', type: 'asset', balance: 0 },
-    { id: 2, code: '1001', name: 'Accounts Receivable', type: 'asset', balance: 0 },
-    { id: 3, code: '1002', name: 'Inventory', type: 'asset', balance: 0 },
-    { id: 4, code: '1003', name: 'Bank', type: 'asset', balance: 0 },
-    { id: 5, code: '1004', name: 'Furniture', type: 'asset', balance: 0 },
-    { id: 6, code: '1005', name: 'Equipment', type: 'asset', balance: 0 },
-    { id: 7, code: '1006', name: 'Land', type: 'asset', balance: 0 },
-    { id: 8, code: '1007', name: 'Investments', type: 'asset', balance: 0 },
-    { id: 9, code: '1008', name: 'Prepaid Expense', type: 'asset', balance: 0 },
-    { id: 10, code: '1009', name: 'Supplies', type: 'asset', balance: 0 },
-    { id: 11, code: '2000', name: 'Accounts Payable', type: 'liability', balance: 0 },
-    { id: 12, code: '2001', name: 'Bank Loan', type: 'liability', balance: 0 },
-    { id: 13, code: '2002', name: 'Unearned Revenue', type: 'liability', balance: 0 },
-    { id: 14, code: '2003', name: 'Debt Payable', type: 'liability', balance: 0 },
-    { id: 15, code: '2004', name: 'Sales Tax', type: 'liability', balance: 0 },
-    { id: 16, code: '2005', name: 'Income Tax', type: 'liability', balance: 0 },
-    { id: 17, code: '2006', name: 'Income Tax Payable', type: 'liability', balance: 0 },
-    { id: 18, code: '2007', name: 'Accrued Expense', type: 'liability', balance: 0 },
-    { id: 19, code: '2008', name: 'Interest Payable', type: 'liability', balance: 0 },
-    { id: 20, code: '2009', name: 'Notes Payable', type: 'liability', balance: 0 },
-    { id: 21, code: '2010', name: 'Wages Payable', type: 'liability', balance: 0 },
-    { id: 22, code: '3000', name: 'Capital', type: 'equity', balance: 0 },
-    { id: 23, code: '4000', name: 'Sales Revenue', type: 'revenue', balance: 0 },
-    { id: 24, code: '4001', name: 'Interest Revenue', type: 'revenue', balance: 0 },
-    { id: 25, code: '4002', name: 'Rent Revenue', type: 'revenue', balance: 0 },
-    { id: 26, code: '4003', name: 'Service Revenue', type: 'revenue', balance: 0 },
-    { id: 27, code: '5000', name: 'Cost of Goods Sold', type: 'expense', balance: 0 },
-    { id: 28, code: '5001', name: 'Rent Expense', type: 'expense', balance: 0 },
-    { id: 29, code: '5002', name: 'Utilities Expense', type: 'expense', balance: 0 },
-    { id: 30, code: '5003', name: 'Advertising', type: 'expense', balance: 0 },
-    { id: 31, code: '5004', name: 'Depreciation Expense', type: 'expense', balance: 0 },
-    { id: 32, code: '5005', name: 'Insurance', type: 'expense', balance: 0 },
-    { id: 33, code: '5006', name: 'Taxes', type: 'expense', balance: 0 },
-    { id: 34, code: '5007', name: 'Office Supplies', type: 'expense', balance: 0 },
-    { id: 35, code: '5008', name: 'Wages Expense', type: 'expense', balance: 0 },
-    { id: 36, code: '5009', name: 'Bad Debt Expense', type: 'expense', balance: 0 },
-    { id: 37, code: '5010', name: 'Salary Expense', type: 'expense', balance: 0 },
-  ]);
+  // Logout handler (defined early for use in fetchData)
+  const handleLogout = React.useCallback(() => {
+    sessionStorage.removeItem('token');
+    // sessionStorage is tab-specific, so logout only affects current tab
+    setIsAuthenticated(false);
+    setUser(null);
+    setJournalEntries([]);
+    setAdjustingEntries([]);
+    setActiveTab('dashboard');
+    navigate('/', { replace: true });
+  }, [navigate]);
+
+  // Fetch user info from server (defined early for use in useEffect)
+  const fetchUserInfo = React.useCallback(async () => {
+    try {
+      const response = await api.get('/me');
+      const userData = response.data;
+      console.log('[fetchUserInfo] User data from server:', userData);
+
+      // Check if username exists
+      if (!userData || !userData.username) {
+        console.error('[fetchUserInfo] Username is missing!');
+        alert('This account does not have a username. Please register a new account with a username to use this feature.');
+        handleLogout();
+        return null;
+      }
+
+      setUser(userData);
+      return userData;
+    } catch (error) {
+      console.error('[fetchUserInfo] Error fetching user info:', error);
+      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        handleLogout();
+      }
+      return null;
+    }
+  }, [handleLogout]);
+
+  // Initial Data Fetching Logic
+  const fetchData = React.useCallback(async () => {
+    try {
+      const res = await api.get('/data');
+      console.log('[fetchData] /data response:', res?.data);
+      setAccounts(res.data.accounts);
+
+      // Split entries into Journal and Adjusting
+      const allEntries = res.data.entries;
+      setJournalEntries(allEntries.filter(e => !e.is_adjusting));
+      setAdjustingEntries(allEntries.filter(e => e.is_adjusting));
+    } catch (err) {
+      console.error("Failed to fetch data", err);
+      // If 401/403, logout
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        handleLogout();
+      }
+    }
+  }, [handleLogout]);
+
+  // Effect to handle initial load and URL-based routing
+  useEffect(() => {
+    const token = sessionStorage.getItem('token');
+    console.log('[App] init token ->', !!token);
+
+    if (token) {
+      // Token exists, fetch user info from server
+      setIsAuthenticated(true);
+      fetchUserInfo().then((userData) => {
+        if (userData) {
+          fetchData(); // Fetch DB Data
+
+          // If user is logged in but URL doesn't have username, redirect to /username
+          if (userData.username && !urlUsername) {
+            console.log('[App] Redirecting to username path:', `/${userData.username}`);
+            navigate(`/${userData.username}`, { replace: true });
+          }
+          // If URL has username but it doesn't match logged-in user, redirect to correct username
+          else if (userData.username && urlUsername && urlUsername !== userData.username) {
+            console.log('[App] Username mismatch, redirecting to:', `/${userData.username}`);
+            navigate(`/${userData.username}`, { replace: true });
+          }
+        }
+      });
+    } else if (urlUsername) {
+      // If URL has username but user is not logged in, redirect to home
+      console.log('[App] User not logged in but URL has username, redirecting to home');
+      navigate('/', { replace: true });
+    }
+  }, [urlUsername, navigate, fetchUserInfo, fetchData]);
+
+  // Effect to handle navigation after user info is fetched
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (!user.username) {
+        console.error('[App] User authenticated but no username found. Logging out.');
+        handleLogout();
+        alert('This account does not have a username. Please register a new account with a username.');
+        return;
+      }
+
+      if (!urlUsername) {
+        console.log('[App] User authenticated, navigating to username path:', `/${user.username}`);
+        navigate(`/${user.username}`, { replace: true });
+      } else if (urlUsername !== user.username) {
+        console.log('[App] Username mismatch after login, redirecting to:', `/${user.username}`);
+        navigate(`/${user.username}`, { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, urlUsername, navigate, handleLogout]);
 
   const [newEntry, setNewEntry] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -84,55 +155,43 @@ const SmartAccountingManager = () => {
     ]
   });
 
-  const [newAccount, setNewAccount] = useState({
-    code: '',
-    name: '',
-    type: 'asset',
-  });
+  const [newAccount, setNewAccount] = useState({ code: '', name: '', type: 'asset' });
 
-  // --- Styling Definitions ---
+  // --- Theme Classes (Same as before) ---
   const themeClasses = {
     dark: {
-      bg: 'bg-neutral-900',
-      text: 'text-slate-100',
-      cardBg: 'bg-neutral-800',
-      border: 'border-cyan-700/50',
-      accent: 'text-lime-400',
-      secondaryAccent: 'text-cyan-400',
-      shadow: 'shadow-lg shadow-black/50',
+      bg: 'bg-neutral-900', text: 'text-slate-100', cardBg: 'bg-neutral-800', border: 'border-cyan-700/50',
+      accent: 'text-lime-400', secondaryAccent: 'text-cyan-400', shadow: 'shadow-lg shadow-black/50',
       input: 'bg-neutral-700 border-neutral-600 text-white focus:ring-cyan-500 focus:border-cyan-500',
-      tableHeader: 'bg-neutral-700 text-slate-300',
-      tableRow: 'even:bg-neutral-800/80 hover:bg-neutral-700/70',
+      tableHeader: 'bg-neutral-700 text-slate-300', tableRow: 'even:bg-neutral-800/80 hover:bg-neutral-700/70',
       buttonPrimary: 'bg-lime-600 text-white hover:bg-lime-500 shadow-lg shadow-lime-900/20',
       buttonSecondary: 'bg-neutral-700 text-slate-300 hover:bg-neutral-600',
     },
     light: {
-      bg: 'bg-slate-50',
-      text: 'text-slate-900',
-      cardBg: 'bg-white',
-      border: 'border-blue-100',
-      accent: 'text-blue-600',
-      secondaryAccent: 'text-cyan-600',
-      shadow: 'shadow-xl shadow-blue-200/50',
+      bg: 'bg-slate-50', text: 'text-slate-900', cardBg: 'bg-white', border: 'border-blue-100',
+      accent: 'text-blue-600', secondaryAccent: 'text-cyan-600', shadow: 'shadow-xl shadow-blue-200/50',
       input: 'bg-white border-slate-300 text-slate-900 focus:ring-blue-500 focus:border-blue-500',
-      tableHeader: 'bg-blue-50 text-slate-700',
-      tableRow: 'even:bg-slate-100 hover:bg-blue-50',
+      tableHeader: 'bg-blue-50 text-slate-700', tableRow: 'even:bg-slate-100 hover:bg-blue-50',
       buttonPrimary: 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200/50',
       buttonSecondary: 'bg-slate-200 text-slate-700 hover:bg-slate-300',
     }
   };
   const t = themeClasses[theme];
 
-  // --- Auth & Account Logic ---
-  const handleLogin = (userData) => {
-    setUser(userData);
-    setIsAuthenticated(true);
-  };
+  const handleLogin = async () => {
+    console.log('[handleLogin] Fetching user info from server...');
+    setIsAuthenticated(true); // Set authenticated first so API calls work
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUser(null);
-    setActiveTab('dashboard');
+    const userData = await fetchUserInfo();
+    if (!userData) {
+      setIsAuthenticated(false);
+      return;
+    }
+
+    fetchData(); // Load data on login
+    // Navigate to /username after login
+    console.log('[handleLogin] Navigating to:', `/${userData.username}`);
+    navigate(`/${userData.username}`, { replace: true });
   };
 
   const resetForm = () => {
@@ -141,126 +200,147 @@ const SmartAccountingManager = () => {
       description: '',
       lines: [{ accountId: '', debit: '', credit: '' }, { accountId: '', debit: '', credit: '' }]
     });
-    setEditingEntry(null); // <-- UPDATED: Reset editing state
+    setEditingEntry(null);
     setShowJournalForm(false);
     setShowAdjustingForm(false);
   };
 
+  // --- UPDATED VALIDATION (Description Optional) ---
   const validateEntry = (entry) => {
-    // Check if description exists
-    if (!entry.description || !entry.date) return false;
+    // Description check removed. Only Date required.
+    if (!entry.date) return false;
 
-    // Check if Debits equals Credits and lines are valid
-    let totalDebits = 0, totalCredits = 0;
-    let validLineCount = 0;
-
+    let totalDebits = 0, totalCredits = 0, validLineCount = 0;
     entry.lines.forEach(line => {
       const debit = parseFloat(line.debit) || 0;
       const credit = parseFloat(line.credit) || 0;
       totalDebits += debit;
       totalCredits += credit;
-
-      if (line.accountId && (debit > 0 || credit > 0)) {
-        validLineCount++;
-      }
+      if (line.accountId && (debit > 0 || credit > 0)) validLineCount++;
     });
 
-    // Must have at least two valid lines and balance must equal zero
     return Math.abs(totalDebits - totalCredits) < 0.01 && validLineCount >= 2;
   };
 
-  // --- NEW: Unified Save/Update Logic ---
-  const saveEntryHandler = (isAdjusting) => {
-    const setEntries = isAdjusting ? setAdjustingEntries : setJournalEntries;
-    const entries = isAdjusting ? adjustingEntries : journalEntries;
-
+  // --- SAVE LOGIC with API ---
+  const saveEntryHandler = async (isAdjusting) => {
     if (!validateEntry(newEntry)) {
-      alert("Validation Error: Please ensure Debits equal Credits, you have at least 2 lines, and all required fields are filled.");
+      alert("Validation Error: Debits must equal Credits, and you need at least 2 lines.");
       return;
     }
 
-    if (editingEntry) {
-      // EDIT LOGIC: Find the old entry and replace it
-      setEntries(entries.map(e => e.id === editingEntry.id ? { ...newEntry, id: editingEntry.id } : e));
-    } else {
-      // NEW ENTRY LOGIC: Add a new entry
-      setEntries([...entries, { ...newEntry, id: Date.now() }]);
-    }
+    try {
+      const entryData = { ...newEntry, is_adjusting: isAdjusting };
+      if (editingEntry) { entryData.id = editingEntry.id; }
 
-    setShowSuccessAlert(true);
-    setTimeout(() => setShowSuccessAlert(false), 3000);
-    resetForm();
+      console.log('[saveEntryHandler] Sending entry data:', JSON.stringify(entryData, null, 2));
+      await api.post('/entries', entryData);
+
+      await fetchData(); // Refresh data from server
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+      resetForm();
+    } catch (error) {
+      console.error("Save failed", error);
+      const errorMessage = error.response?.data?.error || error.message || "Failed to save entry. Please check your connection.";
+      alert(errorMessage);
+    }
   };
 
   const saveJournalEntry = () => saveEntryHandler(false);
   const saveAdjustingEntry = () => saveEntryHandler(true);
 
-  // --- NEW: Edit Handler ---
   const editEntry = (entry, isAdjusting) => {
-    // 1. Load the entry data into the form state
-    setNewEntry({
-      date: entry.date,
-      description: entry.description,
-      // Deep copy the lines to avoid modifying state directly
-      lines: entry.lines.map(line => ({ ...line }))
+    // Normalize lines so the JournalEntryForm can pre-fill account search, type, and amounts correctly
+    const normalizedLines = (entry.lines || []).map((line) => {
+      const accountId = line.accountId || line.account_id || '';
+      const account = accounts.find(a => a.id === Number(accountId));
+
+      const entryType =
+        line.entryType ||
+        line.type ||
+        (line.credit && !line.debit ? 'credit' : 'debit');
+
+      return {
+        // ID used by form & save logic
+        accountId,
+        // Text shown in the searchable account input
+        accountName: line.accountName || account?.name || '',
+        // Ensure entryType is set so debit/credit toggle is correct
+        entryType,
+        // Preserve amounts as strings for the inputs
+        debit: line.debit != null ? String(line.debit) : '',
+        credit: line.credit != null ? String(line.credit) : '',
+      };
     });
 
-    // 2. Store the entry object ID to know which one to update later
+    // Ensure at least two lines exist in the form (UI expects 2+)
+    while (normalizedLines.length < 2) {
+      normalizedLines.push({
+        accountId: '',
+        accountName: '',
+        entryType: 'debit',
+        debit: '',
+        credit: '',
+      });
+    }
+
+    setNewEntry({
+      date: entry.date,
+      description: entry.description || '',
+      lines: normalizedLines,
+    });
     setEditingEntry({ id: entry.id, isAdjusting });
+    if (isAdjusting) { setShowAdjustingForm(true); setActiveTab('adjusting'); }
+    else { setShowJournalForm(true); setActiveTab('journal'); }
+  };
 
-    // 3. Open the correct form and switch tab if necessary
-    if (isAdjusting) {
-      setShowAdjustingForm(true);
-      setActiveTab('adjusting');
-    } else {
-      setShowJournalForm(true);
-      setActiveTab('journal');
+  const deleteEntry = async (id) => {
+    try {
+      await api.delete(`/entries/${id}`);
+      await fetchData(); // Refresh
+      if (editingEntry && editingEntry.id === id) resetForm();
+      setShowDeleteAlert(true);
+      setTimeout(() => setShowDeleteAlert(false), 3000);
+    } catch (error) {
+      console.error("Delete failed", error);
     }
   };
 
-  // --- NEW: Delete Handler ---
-  const deleteEntry = (id, isAdjusting) => {
-
-    const setEntries = isAdjusting ? setAdjustingEntries : setJournalEntries;
-    const entries = isAdjusting ? adjustingEntries : journalEntries;
-
-    // Filter out the entry with the given id
-    setEntries(entries.filter(e => e.id !== id));
-
-    // If the deleted entry was the one being edited, reset the form
-    if (editingEntry && editingEntry.id === id) {
-      resetForm();
-    }
-    setShowDeleteAlert(true);
-    setTimeout(() => setShowDeleteAlert(false), 3000);
-  };
-
-  const addNewAccount = (e) => {
+  const addNewAccount = async (e) => {
     e.preventDefault();
     if (!newAccount.code || !newAccount.name) return;
-    setAccounts([...accounts, { ...newAccount, id: Date.now(), balance: 0 }]);
-    setNewAccount({ code: '', name: '', type: 'asset' });
-    setShowSuccessAlert(true);
-    setTimeout(() => setShowSuccessAlert(false), 3000);
+    try {
+      await api.post('/accounts', newAccount);
+      await fetchData();
+      setNewAccount({ code: '', name: '', type: 'asset' });
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+    } catch (error) {
+      console.error("Add Account failed", error);
+    }
   };
 
-  // --- Core Accounting Calculations (Memoized) ---
+  // --- Calculations (Memoized) - Unchanged ---
   const { balances, getTotalAssets, getTotalLiabilities, getTotalEquity, incomeStatement, trialBalanceData } = useMemo(() => {
     const calculateBalances = () => {
       const balances = {};
       accounts.forEach(acc => { balances[acc.id] = 0; });
       [...journalEntries, ...adjustingEntries].forEach(entry => {
-        entry.lines.forEach(line => {
-          const account = accounts.find(a => a.id === parseInt(line.accountId));
-          if (!account) return;
-          const debit = parseFloat(line.debit) || 0;
-          const credit = parseFloat(line.credit) || 0;
-          if (account.type === 'asset' || account.type === 'expense') {
-            balances[account.id] += debit - credit;
-          } else {
-            balances[account.id] += credit - debit;
-          }
-        });
+        // Validation check for entry.lines in case of data error
+        if (entry.lines && Array.isArray(entry.lines)) {
+          entry.lines.forEach(line => {
+            const account = accounts.find(a => a.id === parseInt(line.accountId || line.account_id)); // Check both camel and snake case
+            if (!account) return;
+            const debit = parseFloat(line.debit) || 0;
+            const credit = parseFloat(line.credit) || 0;
+            if (account.type === 'asset' || account.type === 'expense') {
+              balances[account.id] += debit - credit;
+            } else {
+              balances[account.id] += credit - debit;
+            }
+          });
+        }
       });
       return balances;
     };
@@ -287,16 +367,18 @@ const SmartAccountingManager = () => {
     };
 
     const getTrialBalance = () => {
-      let totalDebits = 0;
-      let totalCredits = 0;
+      let totalDebits = 0, totalCredits = 0;
       const trialBalanceData = [];
       const allEntries = [...journalEntries, ...adjustingEntries];
-      const accountsWithActivity = new Set(allEntries.flatMap(entry => entry.lines.map(line => parseInt(line.accountId))));
+      // Collect IDs of accounts with activity
+      const accountsWithActivity = new Set();
+      allEntries.forEach(entry => {
+        if (entry.lines) entry.lines.forEach(line => accountsWithActivity.add(parseInt(line.accountId || line.account_id)));
+      });
 
       accounts.forEach(account => {
         const balance = currentBalances[account.id] || 0;
-        let debitBalance = 0;
-        let creditBalance = 0;
+        let debitBalance = 0, creditBalance = 0;
         const hasActivity = accountsWithActivity.has(account.id);
         const hasNonZeroBalance = Math.abs(balance) > 0.01;
 
@@ -329,162 +411,40 @@ const SmartAccountingManager = () => {
     };
   }, [accounts, journalEntries, adjustingEntries]);
 
-
-  // --- Main Render Decision ---
-
-  if (!isAuthenticated) {
-    return <AuthPage onLogin={handleLogin} theme={theme} toggleTheme={toggleTheme} t={t} />;
-  }
+  if (!isAuthenticated) return <AuthPage onLogin={handleLogin} theme={theme} toggleTheme={toggleTheme} t={t} />;
 
   return (
     <div className={`${theme === 'dark' ? 'bg-neutral-900' : 'bg-slate-100'} min-h-screen font-sans`}>
       <div className={`flex flex-col md:flex-row max-w-full mx-auto`}>
-
-        {/* Sidebar */}
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} theme={theme} />
-
-        {/* Main Content Area */}
         <div className="flex-1 min-h-screen flex flex-col">
-
-          {/* Header */}
           <header className={`flex justify-between items-center p-4 ${t.cardBg} ${t.text} border-b ${t.border}`}>
             <div className="text-xl font-bold text-cyan-400 hidden sm:block">{activeTab.toUpperCase().replace('_', ' ')}</div>
             <div className="flex items-center gap-4 ml-auto">
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-sm font-mono text-slate-400 hidden sm:inline mr-4">{new Date().toDateString()}</span>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${theme === 'dark' ? 'bg-neutral-700 text-lime-400' : 'bg-blue-100 text-blue-600'}`}>
-                  {user?.name?.charAt(0) || 'U'}
-                </div>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${theme === 'dark' ? 'bg-neutral-700 text-lime-400' : 'bg-blue-100 text-blue-600'}`}>{user?.name?.charAt(0)}</div>
                 <span className="hidden sm:inline font-medium">{user?.name}</span>
               </div>
-
-              <div className={`h-6 w-px ${theme === 'dark' ? 'bg-neutral-700' : 'bg-slate-300'}`}></div>
-
-              <button onClick={toggleTheme} className={`p-2 rounded-full ${t.buttonSecondary} transition-colors`} title="Toggle Theme">
-                {theme === 'dark' ? <Sun size={20} className="text-yellow-300" /> : <Moon size={20} className="text-slate-500" />}
-              </button>
-
-              <button onClick={handleLogout} className={`p-2 rounded-full ${t.buttonSecondary} text-red-400 hover:bg-red-900/20 hover:text-red-400 transition-colors`} title="Logout">
-                <LogOut size={20} />
-              </button>
+              <button onClick={toggleTheme} className={`p-2 rounded-full ${t.buttonSecondary}`}><Sun size={20} /></button>
+              <button onClick={handleLogout} className={`p-2 rounded-full ${t.buttonSecondary} text-red-400 hover:bg-red-900/20`}><LogOut size={20} /></button>
             </div>
           </header>
+          {/* Dev debug overlay removed */}
 
           <main className="flex-1 p-4 md:p-8">
-            {showSuccessAlert && (
-              <div className="mb-4 p-4 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg flex items-center justify-between font-mono">
-                <span>Entry saved successfully!</span>
-                <button onClick={() => setShowSuccessAlert(false)} className="font-bold">X</button>
-              </div>
-            )}
+            {showSuccessAlert && <div className="mb-4 p-4 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg">Entry saved successfully!</div>}
+            {showDeleteAlert && <div className="mb-4 p-4 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg">Deleted successfully!</div>}
 
-            {showDeleteAlert && (
-              <div className="mb-4 p-4 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg flex items-center justify-between font-mono">
-                <span>Delete successfully!</span>
-                <button onClick={() => setShowDeleteAlert(false)} className="font-bold">X</button>
-              </div>
-            )}
-
-            {/* Render Component based on activeTab */}
-            {activeTab === 'dashboard' && (
-              <Dashboard
-                getTotalAssets={getTotalAssets}
-                getTotalLiabilities={getTotalLiabilities}
-                getTotalEquity={getTotalEquity}
-                incomeStatement={incomeStatement}
-                journalEntries={journalEntries}
-                accounts={accounts}
-                t={t}
-              />
-            )}
-
-            {activeTab === 'accounting' && (
-              <Accounting
-                accounts={accounts}
-                newAccount={newAccount}
-                setNewAccount={setNewAccount}
-                addNewAccount={addNewAccount}
-                t={t}
-              />
-            )}
-
-            {activeTab === 'journal' && (
-              <Journal
-                isAdjusting={false}
-                entries={journalEntries}
-                showForm={showJournalForm}
-                setShowForm={setShowJournalForm}
-                newEntry={newEntry}
-                setNewEntry={setNewEntry}
-                accounts={accounts}
-                saveJournalEntry={saveJournalEntry}
-                saveAdjustingEntry={saveAdjustingEntry}
-                resetForm={resetForm}
-                editEntry={editEntry}       
-                deleteEntry={deleteEntry}   
-                editingEntry={editingEntry} 
-                t={t}
-              />
-            )}
-
-            {activeTab === 'adjusting' && (
-              <Journal
-                isAdjusting={true}
-                entries={adjustingEntries}
-                showForm={showAdjustingForm}
-                setShowForm={setShowAdjustingForm}
-                newEntry={newEntry}
-                setNewEntry={setNewEntry}
-                accounts={accounts}
-                saveJournalEntry={saveJournalEntry}
-                saveAdjustingEntry={saveAdjustingEntry}
-                resetForm={resetForm}
-                editEntry={editEntry}       
-                deleteEntry={deleteEntry}   
-                editingEntry={editingEntry} 
-                t={t}
-              />
-            )}
-
-            {activeTab === 'ledger' && (
-              <GeneralLedger
-                accounts={accounts}
-                journalEntries={journalEntries}
-                adjustingEntries={adjustingEntries}
-                balances={balances}
-                t={t}
-              />
-            )}
-
-            {activeTab === 'trial' && (
-              <TrialBalance
-                trialBalanceData={trialBalanceData}
-                t={t}
-              />
-            )}
-
-            {activeTab === 'income' && (
-              <IncomeStatement
-                accounts={accounts}
-                balances={balances}
-                incomeStatement={incomeStatement}
-                t={t}
-              />
-            )}
-
-            {activeTab === 'balance' && (
-              <BalanceSheet
-                accounts={accounts}
-                balances={balances}
-                getTotalAssets={getTotalAssets}
-                getTotalLiabilities={getTotalLiabilities}
-                getTotalEquity={getTotalEquity}
-                incomeStatement={incomeStatement}
-                t={t}
-              />
-            )}
+            {activeTab === 'dashboard' && <Dashboard getTotalAssets={getTotalAssets} getTotalLiabilities={getTotalLiabilities} getTotalEquity={getTotalEquity} incomeStatement={incomeStatement} journalEntries={journalEntries} accounts={accounts} t={t} />}
+            {activeTab === 'accounting' && <Accounting accounts={accounts} newAccount={newAccount} setNewAccount={setNewAccount} addNewAccount={addNewAccount} t={t} />}
+            {activeTab === 'journal' && <Journal isAdjusting={false} entries={journalEntries} showForm={showJournalForm} setShowForm={setShowJournalForm} newEntry={newEntry} setNewEntry={setNewEntry} accounts={accounts} saveJournalEntry={saveJournalEntry} saveAdjustingEntry={saveAdjustingEntry} resetForm={resetForm} editEntry={editEntry} deleteEntry={deleteEntry} editingEntry={editingEntry} t={t} />}
+            {activeTab === 'adjusting' && <Journal isAdjusting={true} entries={adjustingEntries} showForm={showAdjustingForm} setShowForm={setShowAdjustingForm} newEntry={newEntry} setNewEntry={setNewEntry} accounts={accounts} saveJournalEntry={saveJournalEntry} saveAdjustingEntry={saveAdjustingEntry} resetForm={resetForm} editEntry={editEntry} deleteEntry={deleteEntry} editingEntry={editingEntry} t={t} />}
+            {activeTab === 'ledger' && <GeneralLedger accounts={accounts} journalEntries={journalEntries} adjustingEntries={adjustingEntries} balances={balances} t={t} />}
+            {activeTab === 'trial' && <TrialBalance trialBalanceData={trialBalanceData} t={t} />}
+            {activeTab === 'income' && <IncomeStatement accounts={accounts} balances={balances} incomeStatement={incomeStatement} t={t} />}
+            {activeTab === 'balance' && <BalanceSheet accounts={accounts} balances={balances} getTotalAssets={getTotalAssets} getTotalLiabilities={getTotalLiabilities} getTotalEquity={getTotalEquity} incomeStatement={incomeStatement} t={t} />}
           </main>
-
           <Footer theme={theme} />
         </div>
       </div>

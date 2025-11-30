@@ -4,11 +4,11 @@ import {
 } from 'lucide-react';
 
 // --- Stat Card for Dashboard ---
-export const StatCard = ({ title, value, icon: Icon, color, isIncome = false, t }) => (
+export const StatCard = ({ title, value, icon, color, isIncome = false, t }) => (
     <div className={`p-5 rounded-xl ${t.cardBg} ${t.shadow} ${t.border}`}>
         <div className="flex justify-between items-start">
             <h3 className={`text-sm font-semibold uppercase tracking-wider text-slate-400`}>{title}</h3>
-            <Icon size={24} className={`${color}`} />
+            {icon ? React.createElement(icon, { size: 24, className: color }) : null}
         </div>
         <p className={`text-3xl font-mono mt-2 ${isIncome ? (value >= 0 ? 'text-lime-400' : 'text-red-500') : t.text}`}>
             ${value.toFixed(2)}
@@ -27,11 +27,12 @@ export const NetIncomeTrendChart = ({ entries, accounts }) => {
 
         entries.forEach((entry, index) => {
             entry.lines.forEach(line => {
-                const account = accounts.find(a => a.id === parseInt(line.accountId));
+                const accountId = parseInt(line.accountId || line.account_id);
+                const account = accounts.find(a => a.id === accountId);
                 if (!account) return;
 
-                const debit = parseFloat(line.debit) || 0;
-                const credit = parseFloat(line.credit) || 0;
+                const debit = parseFloat(line.debit || line.debit_amount || 0) || 0;
+                const credit = parseFloat(line.credit || line.credit_amount || 0) || 0;
 
                 let change = 0;
                 if (account.type === 'asset' || account.type === 'expense') {

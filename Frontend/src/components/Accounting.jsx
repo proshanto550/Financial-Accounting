@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Plus } from 'lucide-react';
 
 const Accounting = ({
@@ -8,6 +8,13 @@ const Accounting = ({
     addNewAccount,
     t
 }) => {
+    useEffect(() => {
+        try {
+            console.log('Accounting: accounts prop ->', accounts);
+        } catch (e) {
+            console.error('Accounting logging failed', e);
+        }
+    }, [accounts]);
     return (
         <div className={`rounded-xl ${t.cardBg} ${t.shadow} p-6 md:p-8 ${t.border}`}>
             <h2 className={`text-2xl font-bold ${t.secondaryAccent} mb-6`}>ADD NEW ACCOUNT</h2>
@@ -38,25 +45,36 @@ const Accounting = ({
             </form>
             <hr className="my-8 border-neutral-700" />
             <h3 className={`text-xl font-bold ${t.secondaryAccent} mb-4`}>CHART OF ACCOUNTS</h3>
-            <div className={`overflow-x-auto max-h-96 border ${t.border} rounded-lg`}>
-                <table className="min-w-full divide-y divide-neutral-700">
-                    <thead className={`${t.tableHeader} sticky top-0`}>
-                        <tr>
-                            <th className="px-4 py-3 text-left text-sm font-mono uppercase">Code</th>
-                            <th className="px-4 py-3 text-left text-sm font-mono uppercase">Name</th>
-                            <th className="px-4 py-3 text-left text-sm font-mono uppercase">Type</th>
-                        </tr>
-                    </thead>
-                    <tbody className={`${t.cardBg} divide-y divide-neutral-700/50`}>
-                        {accounts.sort((a, b) => a.code.localeCompare(b.code)).map(acc => (
-                            <tr key={acc.id} className={t.tableRow}>
-                                <td className={`px-4 py-2 text-sm text-slate-400`}>{acc.code}</td>
-                                <td className={`px-4 py-2 text-sm ${t.text} font-medium`}>{acc.name}</td>
-                                <td className={`px-4 py-2 text-sm text-slate-400 capitalize`}>{acc.type}</td>
+            <div className={`overflow-auto max-h-96 border ${t.border} rounded-lg`}>
+                {accounts && accounts.length > 0 ? (
+                    <table className="min-w-full divide-y divide-neutral-700">
+                        <thead className={`${t.tableHeader} sticky top-0 z-10`}>
+                            <tr>
+                                <th className="px-4 py-3 text-left text-sm font-mono uppercase">Code</th>
+                                <th className="px-4 py-3 text-left text-sm font-mono uppercase">Name</th>
+                                <th className="px-4 py-3 text-left text-sm font-mono uppercase">Type</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className={`${t.cardBg} divide-y divide-neutral-700/50`}>
+                            {([...accounts].sort((a, b) => {
+                                const A = Number(a.code);
+                                const B = Number(b.code);
+                                if (isNaN(A) && isNaN(B)) return 0;
+                                if (isNaN(A)) return 1; // push non-numeric/missing codes to end
+                                if (isNaN(B)) return -1;
+                                return A - B;
+                            })).map(acc => (
+                                <tr key={acc.id} className={t.tableRow}>
+                                    <td className={`px-4 py-2 text-sm ${t.text} font-mono`}>{acc.code != null ? String(acc.code) : ''}</td>
+                                    <td className={`px-4 py-2 text-sm ${t.text} font-medium`}>{acc.name}</td>
+                                    <td className={`px-4 py-2 text-sm ${t.text} capitalize`}>{acc.type}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                ) : (
+                    <div className={`p-6 text-center ${t.text}`}>No accounts found. Add an account above to get started.</div>
+                )}
             </div>
         </div>
     );

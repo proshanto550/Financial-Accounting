@@ -289,8 +289,7 @@ const JournalEntryForm = ({
                             {/* Amount input (one field) */}
                             <div className="md:col-span-2">
                                 <input
-                                    type="number"
-                                    step="0.01"
+                                    type='text'
                                     placeholder="Amount"
                                     value={amount}
                                     onChange={(e) =>
@@ -299,7 +298,6 @@ const JournalEntryForm = ({
                                             e.target.value
                                         )
                                     }
-                                    // Use color to indicate D/C type
                                     className={`w-full px-3 py-2 border rounded-lg ${t.input} text-right font-mono ${entryType === 'debit' ? 'text-lime-400' : 'text-cyan-400'}`}
                                 />
                             </div>
