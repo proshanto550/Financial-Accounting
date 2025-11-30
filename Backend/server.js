@@ -182,7 +182,25 @@ app.post('/login', (req, res) => {
     });
 });
 
-// 3. GET DATA (Accounts & Entries)
+// 3. GET CURRENT USER INFO (from token)
+app.get('/me', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    console.log(`[GET /me] Request by userId=${userId}`);
+
+    db.get("SELECT id, name, username, email FROM users WHERE id = ?", [userId], (err, user) => {
+        if (err) {
+            console.error('[GET /me] Error fetching user:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        console.log(`[GET /me] Returning user info for userId=${userId}`);
+        res.json({ name: user.name, username: user.username, email: user.email });
+    });
+});
+
+// 4. GET DATA (Accounts & Entries)
 app.get('/data', authenticateToken, (req, res) => {
     const userId = req.user.id;
     console.log(`[GET /data] Request by userId=${userId}`);
@@ -221,7 +239,7 @@ app.get('/data', authenticateToken, (req, res) => {
     });
 });
 
-// 4. ADD ACCOUNT
+// 5. ADD ACCOUNT
 app.post('/accounts', authenticateToken, (req, res) => {
     const { code, name, type } = req.body;
     const sql = "INSERT INTO accounts (user_id, code, name, type) VALUES (?, ?, ?, ?)";
@@ -235,49 +253,122 @@ app.post('/accounts', authenticateToken, (req, res) => {
     });
 });
 
-// 5. SAVE ENTRY (Create or Update)
+// 6. SAVE ENTRY (Create or Update)
 app.post('/entries', authenticateToken, (req, res) => {
     const { id, date, description, is_adjusting, lines } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.id; // Get userId from authenticated user
+
+    console.log(`[POST /entries] Request from user ${userId}, entry ID: ${id || 'new'}, lines: ${lines?.length || 0}`);
 
     // Validate that all account IDs belong to this user
     if (!lines || lines.length === 0) {
+        console.error('[POST /entries] No lines provided');
         return res.status(400).json({ error: "Entry must have at least one line" });
     }
 
-    // Get all account IDs from the lines
-    const accountIds = lines.map(line => line.accountId).filter(accId => accId);
+    // Get all account IDs from the lines and convert to integers
+    const accountIds = lines.map(line => {
+        const accId = line.accountId;
+        const numId = parseInt(accId);
+        console.log(`[POST /entries] Processing line - accountId: ${accId} (type: ${typeof accId}) -> ${numId}`);
+        return numId;
+    }).filter(accId => !isNaN(accId) && accId > 0);
+
+    console.log(`[POST /entries] Extracted account IDs: ${JSON.stringify(accountIds)}`);
+
     if (accountIds.length === 0) {
+        console.error('[POST /entries] No valid account IDs found after filtering');
+        console.error('[POST /entries] Original lines:', JSON.stringify(lines, null, 2));
         return res.status(400).json({ error: "Entry must have valid account IDs" });
     }
 
-    // Helper function to save entry lines
+    if (accountIds.length !== lines.length) {
+        console.error('[POST /entries] Some account IDs are invalid');
+        console.error('[POST /entries] Original lines:', JSON.stringify(lines, null, 2));
+        return res.status(400).json({ error: "One or more account IDs are invalid" });
+    }
+
+    console.log(`[POST /entries] Account IDs to validate: ${accountIds.join(', ')} (count: ${accountIds.length})`);
+
+    // Helper function to save entry lines (returns Promise)
     const saveLines = (entryId) => {
-        const sqlLine = "INSERT INTO entry_lines (entry_id, account_id, debit, credit, type) VALUES (?, ?, ?, ?, ?)";
-        lines.forEach(line => {
-            // Determine type logic if needed, or store what frontend sends
-            const entryType = line.debit ? 'debit' : 'credit';
-            db.run(sqlLine, [entryId, line.accountId, line.debit || 0, line.credit || 0, entryType], (err) => {
-                if (err) {
-                    console.error(`[POST /entries] Error saving line for entry ${entryId}:`, err.message);
+        return new Promise((resolve, reject) => {
+            const sqlLine = "INSERT INTO entry_lines (entry_id, account_id, debit, credit, type) VALUES (?, ?, ?, ?, ?)";
+            let completed = 0;
+            let hasError = false;
+
+            if (lines.length === 0) {
+                console.log(`[POST /entries] No lines to save for entry ${entryId}`);
+                resolve();
+                return;
+            }
+
+            console.log(`[POST /entries] Saving ${lines.length} lines for entry ${entryId}`);
+
+            lines.forEach((line, index) => {
+                // Validate line data
+                const accountId = parseInt(line.accountId);
+                if (!accountId || isNaN(accountId)) {
+                    const error = new Error(`Line ${index + 1} has invalid accountId: ${line.accountId}`);
+                    console.error(`[POST /entries] ${error.message}`);
+                    if (!hasError) {
+                        hasError = true;
+                        reject(error);
+                    }
+                    return;
                 }
+
+                // Determine type logic if needed, or store what frontend sends
+                const entryType = line.debit ? 'debit' : 'credit';
+                const debitValue = parseFloat(line.debit) || 0;
+                const creditValue = parseFloat(line.credit) || 0;
+
+                console.log(`[POST /entries] Saving line ${index + 1}: accountId=${accountId}, debit=${debitValue}, credit=${creditValue}`);
+
+                db.run(sqlLine, [entryId, accountId, debitValue, creditValue, entryType], (err) => {
+                    completed++;
+                    if (err && !hasError) {
+                        hasError = true;
+                        console.error(`[POST /entries] Error saving line ${index + 1} for entry ${entryId}:`, err.message);
+                        reject(err);
+                    } else if (completed === lines.length && !hasError) {
+                        console.log(`[POST /entries] Successfully saved all ${lines.length} lines for entry ${entryId}`);
+                        resolve();
+                    }
+                });
             });
         });
     };
 
     // Check if all accounts belong to this user
+    if (accountIds.length === 0) {
+        return res.status(400).json({ error: "No valid account IDs provided" });
+    }
+
     const placeholders = accountIds.map(() => '?').join(',');
     const checkAccountsSql = `SELECT id FROM accounts WHERE id IN (${placeholders}) AND user_id = ?`;
+    const queryParams = [...accountIds, userId];
 
-    db.all(checkAccountsSql, [...accountIds, userId], (err, validAccounts) => {
+    console.log(`[POST /entries] Checking account ownership. SQL: ${checkAccountsSql}`);
+    console.log(`[POST /entries] Account IDs: ${accountIds.join(', ')}, User ID: ${userId}`);
+    console.log(`[POST /entries] Query params: ${JSON.stringify(queryParams)}`);
+
+    db.all(checkAccountsSql, queryParams, (err, validAccounts) => {
         if (err) {
             console.error('[POST /entries] Error checking account ownership:', err.message);
-            return res.status(500).json({ error: err.message });
+            console.error('[POST /entries] SQL Error details:', err);
+            return res.status(500).json({ error: `Database error: ${err.message}` });
         }
 
+        console.log(`[POST /entries] Valid accounts found: ${validAccounts.length}, Requested: ${accountIds.length}`);
+        console.log(`[POST /entries] Valid account IDs: ${validAccounts.map(a => a.id).join(', ')}`);
+
         if (validAccounts.length !== accountIds.length) {
-            console.error(`[POST /entries] User ${userId} tried to use accounts that don't belong to them. Requested: ${accountIds.join(',')}, Valid: ${validAccounts.map(a => a.id).join(',')}`);
-            return res.status(403).json({ error: "One or more accounts do not belong to you" });
+            const invalidIds = accountIds.filter(id => !validAccounts.some(a => a.id === id));
+            console.error(`[POST /entries] User ${userId} tried to use accounts that don't belong to them.`);
+            console.error(`[POST /entries] Invalid account IDs: ${invalidIds.join(', ')}`);
+            console.error(`[POST /entries] Valid account IDs: ${validAccounts.map(a => a.id).join(', ')}`);
+            return res.status(403).json({ error: `One or more accounts (${invalidIds.join(', ')}) do not belong to you` });
         }
 
         // If updating, verify the entry belongs to this user
@@ -294,29 +385,67 @@ app.post('/entries', authenticateToken, (req, res) => {
                 // UPDATE Existing
                 db.run("UPDATE entries SET date = ?, description = ? WHERE id = ? AND user_id = ?",
                     [date, description || "", id, userId], function (err) {
-                        if (err) return res.status(500).json({ error: err.message });
+                        if (err) {
+                            console.error('[POST /entries] Error updating entry:', err.message);
+                            return res.status(500).json({ error: err.message });
+                        }
                         // Delete old lines
                         db.run("DELETE FROM entry_lines WHERE entry_id = ?", [id], (err) => {
-                            if (err) return res.status(500).json({ error: err.message });
-                            saveLines(id);
-                            res.json({ success: true, id });
+                            if (err) {
+                                console.error('[POST /entries] Error deleting old lines:', err.message);
+                                return res.status(500).json({ error: err.message });
+                            }
+                            // Save new lines
+                            saveLines(id).then(() => {
+                                res.json({ success: true, id });
+                            }).catch((saveErr) => {
+                                console.error('[POST /entries] Error saving lines:', saveErr.message);
+                                res.status(500).json({ error: saveErr.message });
+                            });
                         });
                     });
             });
         } else {
             // CREATE New
             const sql = "INSERT INTO entries (user_id, date, description, is_adjusting) VALUES (?, ?, ?, ?)";
+            console.log(`[POST /entries] Creating new entry for user ${userId}`);
+            console.log(`[POST /entries] Entry data - date: ${date}, description: "${description || ''}", is_adjusting: ${is_adjusting}`);
+            console.log(`[POST /entries] SQL: ${sql}`);
+            console.log(`[POST /entries] Params: [${userId}, "${date}", "${description || ''}", ${is_adjusting ? 1 : 0}]`);
+
             db.run(sql, [userId, date, description || "", is_adjusting ? 1 : 0], function (err) {
-                if (err) return res.status(500).json({ error: err.message });
+                if (err) {
+                    console.error('[POST /entries] Error creating entry:', err.message);
+                    console.error('[POST /entries] Error code:', err.code);
+                    console.error('[POST /entries] Full error:', err);
+                    return res.status(500).json({ error: `Failed to create entry: ${err.message}` });
+                }
                 const newId = this.lastID;
-                saveLines(newId);
-                res.json({ success: true, id: newId });
+                console.log(`[POST /entries] Successfully created entry ${newId}, now saving ${lines.length} lines...`);
+
+                // Save lines
+                saveLines(newId).then(() => {
+                    console.log(`[POST /entries] Successfully created entry ${newId} with all ${lines.length} lines`);
+                    res.json({ success: true, id: newId });
+                }).catch((saveErr) => {
+                    console.error('[POST /entries] Error saving lines:', saveErr.message);
+                    console.error('[POST /entries] Error stack:', saveErr.stack);
+                    // Try to delete the entry if lines failed to save
+                    db.run("DELETE FROM entries WHERE id = ?", [newId], (delErr) => {
+                        if (delErr) {
+                            console.error('[POST /entries] Error deleting failed entry:', delErr.message);
+                        } else {
+                            console.log(`[POST /entries] Deleted failed entry ${newId}`);
+                        }
+                    });
+                    res.status(500).json({ error: `Failed to save entry lines: ${saveErr.message}` });
+                });
             });
         }
     });
 });
 
-// 6. DELETE ENTRY
+// 7. DELETE ENTRY
 app.delete('/entries/:id', authenticateToken, (req, res) => {
     db.run("DELETE FROM entries WHERE id = ? AND user_id = ?", [req.params.id, req.user.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
