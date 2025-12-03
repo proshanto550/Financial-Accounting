@@ -8,7 +8,7 @@ const JournalList = ({ entries, accounts, t, editEntry, deleteEntry, isAdjusting
             <div className="flex justify-end mb-4">
                 <button
                     onClick={downloadPDF}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg font-medium transition-colors ${t.buttonSecondary}`}
+                    className={`flex items-center gap-2 px-4 py-2 text-lg rounded-lg font-medium transition-colors ${t.buttonSecondary}`}
                 >
                     <Download size={16} /> Download List
                 </button>
@@ -37,7 +37,7 @@ const JournalList = ({ entries, accounts, t, editEntry, deleteEntry, isAdjusting
 
                     <div className={`p-4 border-b ${t.border} flex justify-between items-center`}>
                         <h4 className={`text-md font-semibold ${t.accent}`}>{entry.date}</h4>
-                        <p className={`text-sm text-slate-400 font-mono`}>ID: {entry.id}</p>
+                        <p className={`text-lg text-slate-400 font-mono`}>ID: {entry.id}</p>
                     </div>
                     {/* Description is shown in the table rows; do not duplicate under the date */}
 
@@ -45,10 +45,10 @@ const JournalList = ({ entries, accounts, t, editEntry, deleteEntry, isAdjusting
                         <table className="min-w-full divide-y divide-neutral-700">
                             <thead className={`${t.tableHeader}`}>
                                 <tr>
-                                    <th className="px-6 py-4 text-left text-base font-mono uppercase">Account</th>
-                                    <th className="px-6 py-4 text-left text-base font-mono uppercase">Description</th>
-                                    <th className="px-6 py-4 text-right text-base font-mono uppercase">Debit</th>
-                                    <th className="px-6 pr-6 py-4 text-right text-base font-mono uppercase">Credit</th>
+                                    <th className="px-6 py-4 text-left text-xl font-mono uppercase">Account</th>
+                                    <th className="px-6 py-4 text-left text-xl font-mono uppercase">Description</th>
+                                    <th className="px-6 py-4 text-right text-xl font-mono uppercase">Debit</th>
+                                    <th className="px-6 pr-6 py-4 text-right text-xl font-mono uppercase">Credit</th>
                                 </tr>
                             </thead>
 
@@ -57,10 +57,10 @@ const JournalList = ({ entries, accounts, t, editEntry, deleteEntry, isAdjusting
                                     const account = accounts.find(a => a.id === parseInt(line.accountId || line.account_id)); // Use OR for compatibility
                                     return (
                                         <tr key={index} className={`${t.tableRow}`}>
-                                            <td className={`px-6 py-3 text-base ${t.text}`}>{account ? account.name : 'Unknown Account'}</td>
-                                            <td className={`px-6 py-3 text-base ${t.text} text-left font-mono text-slate-400`}>{entry.description}</td>
-                                            <td className={`px-6 py-3 text-base ${t.text} text-right font-mono ${line.debit ? 'text-lime-400' : 'text-slate-500'}`}>{line.debit ? `$${parseFloat(line.debit).toFixed(2)}` : ''}</td>
-                                            <td className={`px-6 pr-6 py-3 text-base ${t.text} text-right font-mono ${line.credit ? 'text-cyan-400' : 'text-slate-500'}`}>{line.credit ? `$${parseFloat(line.credit).toFixed(2)}` : ''}</td>
+                                            <td className={`px-6 py-3 text-xl ${t.text}`}>{account ? account.name : 'Unknown Account'}</td>
+                                            <td className={`px-6 py-3 text-xl ${t.text} text-left font-mono text-slate-400`}>{entry.description}</td>
+                                            <td className={`px-6 py-3 text-xl ${t.text} text-right font-mono ${line.debit ? 'text-lime-400' : 'text-slate-500'}`}>{line.debit ? `$${parseFloat(line.debit).toFixed(2)}` : ''}</td>
+                                            <td className={`px-6 pr-6 py-3 text-xl ${t.text} text-right font-mono ${line.credit ? 'text-cyan-400' : 'text-slate-500'}`}>{line.credit ? `$${parseFloat(line.credit).toFixed(2)}` : ''}</td>
                                         </tr>
                                     );
                                 })}

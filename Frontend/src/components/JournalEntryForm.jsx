@@ -152,12 +152,12 @@ const JournalEntryForm = ({
 
     return (
         <div className={`rounded-xl ${t.cardBg} ${t.shadow} p-6 ${t.border}`}>
-            <h2 className={`text-2xl font-bold ${t.secondaryAccent} mb-6`}>{title}</h2>
+            <h2 className={`text-4xl font-bold ${t.secondaryAccent} mb-6`}>{title}</h2>
 
             {/* Date + Description */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label className={`block text-sm font-mono mb-1 ${t.text}`}>Date</label>
+                    <label className={`block text-lg font-mono mb-1 ${t.text}`}>Date</label>
                     <input
                         type="date"
                         // FIX: Access safely
@@ -167,7 +167,7 @@ const JournalEntryForm = ({
                     />
                 </div>
                 <div className="md:col-span-2">
-                    <label className={`block text-sm font-mono mb-1 ${t.text}`} >
+                    <label className={`block text-lg font-mono mb-1 ${t.text}`} >
                         Description
                     </label>
                     <input
@@ -216,7 +216,7 @@ const JournalEntryForm = ({
                                 {suggestions.length > 0 && !isAccountSelected && (
                                     <div
                                         // FIX: Use theme variables and position ABOVE the input
-                                        className={`absolute bottom-full mb-1 left-0 w-full z-20 rounded-xl ${t.cardBg} ${t.shadow} ${t.border} text-sm max-h-40 overflow-y-auto ring-2 ring-cyan-500/50`}
+                                        className={`absolute bottom-full mb-1 left-0 w-full z-20 rounded-xl ${t.cardBg} ${t.shadow} ${t.border} text-lg max-h-40 overflow-y-auto ring-2 ring-cyan-500/50`}
                                     >
                                         {suggestions.map((acc) => (
                                             <button
@@ -232,7 +232,7 @@ const JournalEntryForm = ({
                                                 className={`flex justify-between items-center w-full text-left py-2 px-3 ${t.text} hover:bg-cyan-700/30 transition-colors border-b ${t.border}`}
                                             >
                                                 <span className="font-medium">{acc.name}</span>
-                                                <span className="text-xs font-mono text-slate-400">{acc.code}</span>
+                                                <span className="text-base font-mono text-slate-400">{acc.code}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -279,7 +279,7 @@ const JournalEntryForm = ({
                                             e.target.value
                                         )
                                     }
-                                    className={`w-full px-3 py-2 border rounded-lg ${t.input} text-sm`}
+                                    className={`w-full px-3 py-2 border rounded-lg ${t.input} text-lg`}
                                 >
                                     <option value="debit">Debit</option>
                                     <option value="credit">Credit</option>
@@ -324,7 +324,7 @@ const JournalEntryForm = ({
                 <button
                     type="button"
                     onClick={addLine}
-                    className={`flex items-center gap-2 px-4 py-2 ${t.buttonSecondary} rounded-lg transition-colors text-sm font-medium`}
+                    className={`flex items-center gap-2 px-4 py-2 ${t.buttonSecondary} rounded-lg transition-colors text-lg font-medium`}
                 >
                     <Plus size={16} /> Add Line
                 </button>

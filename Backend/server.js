@@ -253,6 +253,44 @@ app.post('/accounts', authenticateToken, (req, res) => {
     });
 });
 
+// 5.5. DELETE ACCOUNT
+app.delete('/accounts/:id', authenticateToken, (req, res) => {
+    console.log(`[DELETE /accounts/:id] Received request for account ID: ${req.params.id}`);
+    const accountId = parseInt(req.params.id);
+    if (isNaN(accountId)) {
+        return res.status(400).json({ error: "Invalid account ID." });
+    }
+    // First check if account exists and belongs to user
+    db.get("SELECT id FROM accounts WHERE id = ? AND user_id = ?", [accountId, req.user.id], (err, account) => {
+        if (err) {
+            console.error('[DELETE /accounts/:id] DB error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        if (!account) {
+            return res.status(404).json({ error: "Account not found." });
+        }
+        // Check if account is used in any entry lines
+        db.get("SELECT COUNT(*) as count FROM entry_lines WHERE account_id = ?", [accountId], (err, row) => {
+            if (err) {
+                console.error('[DELETE /accounts/:id] DB error:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
+            if (row.count > 0) {
+                return res.status(400).json({ error: "Cannot delete account that is used in journal entries." });
+            }
+            // Delete the account
+            db.run("DELETE FROM accounts WHERE id = ? AND user_id = ?", [accountId, req.user.id], function (err) {
+                if (err) {
+                    console.error('[DELETE /accounts/:id] DB error:', err.message);
+                    return res.status(500).json({ error: err.message });
+                }
+                console.log(`[DELETE /accounts/:id] User ${req.user.id} deleted account ${accountId}`);
+                res.json({ success: true });
+            });
+        });
+    });
+});
+
 // 6. SAVE ENTRY (Create or Update)
 app.post('/entries', authenticateToken, (req, res) => {
     const { id, date, description, is_adjusting, lines } = req.body;

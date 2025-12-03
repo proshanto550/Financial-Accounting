@@ -177,46 +177,141 @@ export const downloadTrialBalancePDF = (trialBalanceData) => {
 export const downloadIncomeStatementPDF = (accounts, balances, incomeStatement) => {
     try {
         const { revenue = 0, expenses = 0, netIncome = 0 } = incomeStatement || {};
-        const doc = initializePDF("Income Statement");
-        let finalY = 30;
+        const doc = new jsPDF();
 
-        const printSection = (title, accountsList, total, color, isExpense = false) => {
-            doc.setFontSize(12);
-            doc.setTextColor(color[0], color[1], color[2]);
-            doc.text(title, 14, finalY + 5);
-            doc.setTextColor(0);
-            finalY += 8;
+        // Set white background
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight(), 'F');
 
-            const bodyData = (accountsList || []).map(acc => [acc.name || '', isExpense ? `(${safeToFixed(balances[acc.id])})` : safeToFixed(balances[acc.id])]);
+        // Title - matching web structure
+        doc.setFontSize(24);
+        doc.setTextColor(6, 182, 212); // cyan-400
+        doc.setFont(undefined, 'bold');
+        doc.text('INCOME STATEMENT', 105, 20, { align: 'center' });
+
+        // Date
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0); // black
+        doc.setFont(undefined, 'normal');
+        doc.text(`Report Generated: ${new Date().toLocaleDateString()}`, 14, 30);
+
+        let finalY = 40;
+
+        // Revenue Section - matching web structure
+        doc.setFontSize(18);
+        doc.setTextColor(163, 230, 53); // lime-400
+        doc.setFont(undefined, 'bold');
+        doc.text('REVENUE', 14, finalY);
+        finalY += 8;
+
+        const revenueAccounts = (accounts || []).filter(acc => acc.type === 'revenue' && safeNum(balances[acc.id]) !== 0);
+
+        if (revenueAccounts.length === 0) {
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'italic');
+            doc.text('No revenue recorded', 14, finalY);
+            finalY += 6;
+        } else {
+            const revenueData = revenueAccounts.map(acc => [
+                acc.name || '',
+                `$${safeToFixed(balances[acc.id])}`
+            ]);
 
             autoTable(doc, {
                 startY: finalY,
                 head: [['Account', 'Amount ($)']],
-                body: bodyData,
+                body: revenueData,
                 theme: 'plain',
-                headStyles: { fillColor: [20, 20, 20], textColor: [255, 255, 255], fontStyle: 'bold' },
-                styles: { fontSize: 10, textColor: [0, 0, 0] },
+                headStyles: {
+                    fillColor: [230, 230, 230], // light gray
+                    textColor: [0, 0, 0], // black text
+                    fontStyle: 'bold',
+                    fontSize: 11
+                },
+                styles: {
+                    fontSize: 10,
+                    textColor: [0, 0, 0], // black text
+                    cellPadding: 3
+                },
                 columnStyles: {
                     1: { halign: 'right' }, // Amount
                 },
-                foot: [['Total ' + title, isExpense ? `(${safeToFixed(total)})` : safeToFixed(total)]],
-                footStyles: { fontStyle: 'bold', fillColor: [20, 20, 20], textColor: [255, 255, 255] },
                 didDrawPage: (data) => { finalY = data.cursor.y; }
             });
-            finalY = doc.previousAutoTable ? doc.previousAutoTable.finalY + 5 : finalY + 5;
-        };
+            finalY = doc.previousAutoTable ? doc.previousAutoTable.finalY + 3 : finalY + 3;
+        }
 
-        const revenueAccounts = (accounts || []).filter(acc => acc.type === 'revenue' && safeNum(balances[acc.id]) !== 0);
-        printSection('REVENUE', revenueAccounts, revenue, [77, 182, 172]); // Teal-ish
+        // Total Revenue
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.text('Total Revenue', 14, finalY + 5);
+        doc.setTextColor(163, 230, 53); // lime-400
+        doc.text(`$${safeToFixed(revenue)}`, 190, finalY + 5, { align: 'right' });
+        finalY += 20;
+
+        // Expenses Section - matching web structure
+        doc.setFontSize(18);
+        doc.setTextColor(163, 230, 53); // lime-400
+        doc.setFont(undefined, 'bold');
+        doc.text('EXPENSES', 14, finalY);
+        finalY += 8;
 
         const expenseAccounts = (accounts || []).filter(acc => acc.type === 'expense' && safeNum(balances[acc.id]) !== 0);
-        printSection('EXPENSES', expenseAccounts, expenses, [244, 67, 54], true); // Red-ish
 
-        // Net Income Summary
-        doc.setFontSize(14);
-        doc.text('NET INCOME', 14, finalY + 5);
-        doc.setTextColor(netIncome >= 0 ? 0 : 255, netIncome >= 0 ? 150 : 0, netIncome >= 0 ? 136 : 0); // Green/Red
-        doc.text(`$${safeToFixed(netIncome)}`, 190, finalY + 5, null, null, 'right');
+        if (expenseAccounts.length === 0) {
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'italic');
+            doc.text('No expenses recorded', 14, finalY);
+            finalY += 6;
+        } else {
+            const expenseData = expenseAccounts.map(acc => [
+                acc.name || '',
+                `($${safeToFixed(balances[acc.id])})`
+            ]);
+
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Account', 'Amount ($)']],
+                body: expenseData,
+                theme: 'plain',
+                headStyles: {
+                    fillColor: [230, 230, 230], // light gray
+                    textColor: [0, 0, 0], // black text
+                    fontStyle: 'bold',
+                    fontSize: 11
+                },
+                styles: {
+                    fontSize: 10,
+                    textColor: [0, 0, 0], // black text
+                    cellPadding: 3
+                },
+                columnStyles: {
+                    1: { halign: 'right' }, // Amount
+                },
+                didDrawPage: (data) => { finalY = data.cursor.y; }
+            });
+            finalY = doc.previousAutoTable ? doc.previousAutoTable.finalY + 3 : finalY + 3;
+        }
+
+        // Total Expenses
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.text('Total Expenses', 14, finalY + 5);
+        doc.setTextColor(248, 113, 113); // red-400
+        doc.text(`($${safeToFixed(expenses)})`, 190, finalY + 5, { align: 'right' });
+        finalY += 15;
+
+        // Net Income - matching web structure
+        doc.setFontSize(18);
+        doc.setTextColor(6, 182, 212); // cyan-400
+        doc.setFont(undefined, 'bold');
+        doc.text('Net Income', 14, finalY);
+        doc.setTextColor(netIncome >= 0 ? 163 : 248, netIncome >= 0 ? 230 : 113, netIncome >= 0 ? 53 : 113); // lime-400 or red-400
+        doc.text(`$${safeToFixed(netIncome)}`, 190, finalY, { align: 'right' });
 
         doc.save("Income_Statement.pdf");
     } catch (err) {
@@ -231,111 +326,188 @@ export const downloadBalanceSheetPDF = (accounts, balances, totals, incomeStatem
     try {
         const { totalAssets = 0, totalLiabilities = 0, totalEquity = 0 } = totals || {};
         const netIncome = safeNum(incomeStatement?.netIncome);
-        const totalLiabilitiesAndEquity = safeNum(totalLiabilities) + safeNum(totalEquity);
-        const doc = initializePDF("Balance Sheet");
-        let finalY = 30;
+        const totalEquityAndLiabilities = safeNum(totalLiabilities) + safeNum(totalEquity);
+        const doc = new jsPDF();
+
+        // Set white background
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight(), 'F');
+
+        // Title - matching web structure
+        doc.setFontSize(24);
+        doc.setTextColor(6, 182, 212); // cyan-400
+        doc.setFont(undefined, 'bold');
+        doc.text('BALANCE SHEET', 105, 20, { align: 'center' });
+
+        // Date
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0); // black
+        doc.setFont(undefined, 'normal');
+        doc.text(`Report Generated: ${new Date().toLocaleDateString()}`, 14, 30);
+
+        let finalY = 40;
 
         // Build lists like BalanceSheet.jsx
-        const assetAccounts = accounts.filter(a => a.type === 'asset' && balances[a.id] !== 0);
-        const liabilityAccounts = accounts.filter(a => a.type === 'liability' && balances[a.id] !== 0);
-        const equityAccounts = accounts.filter(a => a.type === 'equity' && balances[a.id] !== 0);
+        const assetAccounts = (accounts || []).filter(a => a.type === 'asset' && safeNum(balances[a.id]) !== 0);
+        const liabilityAccounts = (accounts || []).filter(a => a.type === 'liability' && safeNum(balances[a.id]) !== 0);
+        const equityAccounts = (accounts || []).filter(a => a.type === 'equity' && safeNum(balances[a.id]) !== 0);
 
-        const assetRows = assetAccounts.map(acc => ({
-            name: acc.name || '',
-            amount: `$${safeToFixed(balances[acc.id])}`,
-        }));
+        // ASSETS Section - matching web structure
+        doc.setFontSize(18);
+        doc.setTextColor(163, 230, 53); // lime-400
+        doc.setFont(undefined, 'bold');
+        doc.text('ASSETS', 14, finalY);
+        finalY += 8;
 
-        // Right side: Liabilities section + subtotal, then Equity section + Net Income (like BalanceSheet.jsx)
-        const rightSideRows = [];
+        const assetData = assetAccounts.map(acc => [
+            acc.name || '',
+            `$${safeToFixed(balances[acc.id])}`
+        ]);
 
-        if (liabilityAccounts.length > 0) {
-            rightSideRows.push({ name: 'Liabilities', amount: '', _section: 'header' });
-            liabilityAccounts.forEach(acc => {
-                rightSideRows.push({
-                    name: acc.name || '',
-                    amount: `$${safeToFixed(balances[acc.id])}`,
-                    _section: 'liability',
-                });
+        if (assetData.length > 0) {
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Account', 'Amount ($)']],
+                body: assetData,
+                theme: 'plain',
+                headStyles: {
+                    fillColor: [230, 230, 230], // light gray
+                    textColor: [0, 0, 0], // black text
+                    fontStyle: 'bold',
+                    fontSize: 11
+                },
+                styles: {
+                    fontSize: 10,
+                    textColor: [0, 0, 0], // black text
+                    cellPadding: 3
+                },
+                columnStyles: {
+                    1: { halign: 'right' }, // Amount
+                },
+                didDrawPage: (data) => { finalY = data.cursor.y; }
             });
-            rightSideRows.push({
-                name: 'Total Liabilities',
-                amount: `$${safeToFixed(totalLiabilities)}`,
-                _section: 'subtotalLiabilities',
-            });
+            finalY = doc.previousAutoTable ? doc.previousAutoTable.finalY + 3 : finalY + 3;
         }
 
-        if (equityAccounts.length > 0 || safeNum(netIncome) !== 0) {
-            rightSideRows.push({ name: 'Equity', amount: '', _section: 'header' });
-            equityAccounts.forEach(acc => {
-                rightSideRows.push({
-                    name: acc.name || '',
-                    amount: `$${safeToFixed(balances[acc.id])}`,
-                    _section: 'equity',
-                });
+        // Total Assets
+        doc.setFontSize(14);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.text('Total Assets', 14, finalY + 5);
+        doc.setTextColor(163, 230, 53); // lime-400
+        doc.text(`$${safeToFixed(totalAssets)}`, 190, finalY + 5, { align: 'right' });
+        finalY += 15;
+
+        // LIABILITIES & EQUITY Section - matching web structure
+        doc.setFontSize(18);
+        doc.setTextColor(6, 182, 212); // cyan-400
+        doc.setFont(undefined, 'bold');
+        doc.text('LIABILITIES & EQUITY', 14, finalY);
+        finalY += 8;
+
+        // Liabilities subsection
+        doc.setFontSize(14);
+        doc.setTextColor(163, 230, 53); // lime-400
+        doc.setFont(undefined, 'bold');
+        doc.text('Liabilities', 14, finalY);
+        finalY += 6;
+
+        const liabilityData = liabilityAccounts.map(acc => [
+            acc.name || '',
+            `$${safeToFixed(balances[acc.id])}`
+        ]);
+
+        if (liabilityData.length > 0) {
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Account', 'Amount ($)']],
+                body: liabilityData,
+                theme: 'plain',
+                headStyles: {
+                    fillColor: [230, 230, 230], // light gray
+                    textColor: [0, 0, 0], // black text
+                    fontStyle: 'bold',
+                    fontSize: 11
+                },
+                styles: {
+                    fontSize: 10,
+                    textColor: [0, 0, 0], // black text
+                    cellPadding: 3
+                },
+                columnStyles: {
+                    1: { halign: 'right' }, // Amount
+                },
+                didDrawPage: (data) => { finalY = data.cursor.y; }
             });
-            rightSideRows.push({
-                name: 'Net Income',
-                amount: `$${safeToFixed(netIncome)}`,
-                _section: 'netIncome',
-            });
+            finalY = doc.previousAutoTable ? doc.previousAutoTable.finalY + 3 : finalY + 3;
         }
 
-        const maxRows = Math.max(assetRows.length, rightSideRows.length);
-        const bodyData = [];
-        for (let i = 0; i < maxRows; i++) {
-            const left = assetRows[i] || {};
-            const right = rightSideRows[i] || {};
-            bodyData.push([
-                left.name || '',
-                left.amount || '',
-                right.name || '',
-                right.amount || '',
-            ]);
+        // Total Liabilities
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.text('Total Liabilities', 14, finalY + 5);
+        doc.text(`$${safeToFixed(totalLiabilities)}`, 190, finalY + 5, { align: 'right' });
+        finalY += 12;
+
+        // Equity subsection
+        doc.setFontSize(14);
+        doc.setTextColor(163, 230, 53); // lime-400
+        doc.setFont(undefined, 'bold');
+        doc.text('Equity', 14, finalY);
+        finalY += 6;
+
+        const equityData = equityAccounts.map(acc => [
+            acc.name || '',
+            `$${safeToFixed(balances[acc.id])}`
+        ]);
+
+        // Add Net Income to equity data
+        equityData.push(['Net Income', `$${safeToFixed(netIncome)}`]);
+
+        if (equityData.length > 0) {
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Account', 'Amount ($)']],
+                body: equityData,
+                theme: 'plain',
+                headStyles: {
+                    fillColor: [230, 230, 230], // light gray
+                    textColor: [0, 0, 0], // black text
+                    fontStyle: 'bold',
+                    fontSize: 11
+                },
+                styles: {
+                    fontSize: 10,
+                    textColor: [0, 0, 0], // black text
+                    cellPadding: 3
+                },
+                columnStyles: {
+                    1: { halign: 'right' }, // Amount
+                },
+                didDrawPage: (data) => { finalY = data.cursor.y; }
+            });
+            finalY = doc.previousAutoTable ? doc.previousAutoTable.finalY + 3 : finalY + 3;
         }
 
-        // 2-column layout table: left = Assets, right = Liabilities & Equity
-        autoTable(doc, {
-            startY: finalY,
-            head: [['ASSETS', 'Amount ($)', 'LIABILITIES & EQUITY', 'Amount ($)']],
-            body: bodyData,
-            theme: 'plain',
-            headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
-            styles: { fontSize: 10, textColor: [0, 0, 0] },
-            columnStyles: {
-                1: { halign: 'right' }, // Left amount
-                3: { halign: 'right' }, // Right amount
-            },
-            bodyStyles: { textColor: [0, 0, 0] },
-            didParseCell: (data) => {
-                const { section, column, row } = data;
-                if (section !== 'body') return;
+        // Total Liabilities & Equity
+        doc.setFontSize(14);
+        doc.setTextColor(6, 182, 212); // cyan-400
+        doc.setFont(undefined, 'bold');
+        doc.text('Total Liabilities & Equity', 14, finalY + 5);
+        doc.text(`$${safeToFixed(totalEquityAndLiabilities)}`, 190, finalY + 5, { align: 'right' });
+        finalY += 12;
 
-                const rowMeta = rightSideRows[row.index];
-                // Bold for section headers "Liabilities" / "Equity" in right name column
-                if (rowMeta && rowMeta._section === 'header' && column.index === 2) {
-                    data.cell.styles.fontStyle = 'bold';
-                }
-            },
-            foot: [[
-                'Total Assets',
-                `$${safeToFixed(totalAssets)}`,
-                'Total Liabilities & Equity',
-                `$${safeToFixed(totalLiabilitiesAndEquity)}`,
-            ]],
-            footStyles: { fontStyle: 'bold', fillColor: [235], textColor: [0] },
-            didDrawPage: (data) => { finalY = data.cursor.y; }
-        });
-
-        // Draw a vertical separator line between left (Assets) and right (Liabilities & Equity)
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const midX = pageWidth / 2;
-        const lastTable = doc.previousAutoTable;
-        if (lastTable) {
-            const topY = lastTable.startY;
-            const bottomY = lastTable.finalY;
-            doc.setDrawColor(148, 163, 184); // slate-400-ish
-            doc.setLineWidth(0.3);
-            doc.line(midX, topY, midX, bottomY);
+        // Equation Check - matching web structure
+        const isBalanced = Math.abs(totalAssets - totalEquityAndLiabilities) < 0.01;
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        if (isBalanced) {
+            doc.setTextColor(163, 230, 53); // lime-400
+            doc.text('Equation Check: Assets = Liabilities + Equity (OK)', 14, finalY + 5);
+        } else {
+            doc.setTextColor(248, 113, 113); // red-400
+            doc.text(`Warning: Assets ($${safeToFixed(totalAssets)}) do not equal L + E ($${safeToFixed(totalEquityAndLiabilities)})`, 14, finalY + 5);
         }
 
         doc.save("Balance_Sheet.pdf");

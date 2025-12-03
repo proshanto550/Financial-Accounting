@@ -321,6 +321,22 @@ const SmartAccountingManager = () => {
     }
   };
 
+  const deleteAccount = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this account? This action cannot be undone if the account is not used in any entries.')) {
+      return;
+    }
+    try {
+      await api.delete(`/accounts/${id}`);
+      await fetchData();
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+    } catch (error) {
+      console.error("Delete Account failed", error);
+      const errorMessage = error.response?.data?.error || error.message || "Failed to delete account.";
+      alert(errorMessage);
+    }
+  };
+
   // --- Calculations (Memoized) - Unchanged ---
   const { balances, getTotalAssets, getTotalLiabilities, getTotalEquity, incomeStatement, trialBalanceData } = useMemo(() => {
     const calculateBalances = () => {
@@ -416,13 +432,15 @@ const SmartAccountingManager = () => {
   return (
     <div className={`${theme === 'dark' ? 'bg-neutral-900' : 'bg-slate-100'} min-h-screen font-sans`}>
       <div className={`flex flex-col md:flex-row max-w-full mx-auto`}>
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} theme={theme} />
-        <div className="flex-1 min-h-screen flex flex-col">
-          <header className={`flex justify-between items-center p-4 ${t.cardBg} ${t.text} border-b ${t.border}`}>
-            <div className="text-xl font-bold text-cyan-400 hidden sm:block">{activeTab.toUpperCase().replace('_', ' ')}</div>
+        <div className="fixed left-0 top-0 h-full z-30">
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} theme={theme} />
+        </div>
+        <div className="flex-1 min-h-screen flex flex-col md:ml-72">
+          <header className={`fixed top-0 right-0 left-0 md:left-72 z-20 h-16 flex justify-between items-center p-4 ${t.cardBg} ${t.text} border-b ${t.border}`}>
+            <div className="text-3xl font-bold text-cyan-400 hidden sm:block">{activeTab.toUpperCase().replace('_', ' ')}</div>
             <div className="flex items-center gap-4 ml-auto">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-sm font-mono text-slate-400 hidden sm:inline mr-4">{new Date().toDateString()}</span>
+              <div className="flex items-center gap-2 text-lg">
+                <span className="text-lg font-mono text-slate-400 hidden sm:inline mr-4">{new Date().toDateString()}</span>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${theme === 'dark' ? 'bg-neutral-700 text-lime-400' : 'bg-blue-100 text-blue-600'}`}>{user?.name?.charAt(0)}</div>
                 <span className="hidden sm:inline font-medium">{user?.name}</span>
               </div>
@@ -432,20 +450,22 @@ const SmartAccountingManager = () => {
           </header>
           {/* Dev debug overlay removed */}
 
-          <main className="flex-1 p-4 md:p-8">
-            {showSuccessAlert && <div className="mb-4 p-4 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg">Entry saved successfully!</div>}
-            {showDeleteAlert && <div className="mb-4 p-4 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg">Deleted successfully!</div>}
+          <div className="flex-1 overflow-y-auto pt-16">
+            <main className="p-4 md:p-8">
+              {showSuccessAlert && <div className="mb-4 p-4 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg">Entry saved successfully!</div>}
+              {showDeleteAlert && <div className="mb-4 p-4 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg">Deleted successfully!</div>}
 
-            {activeTab === 'dashboard' && <Dashboard getTotalAssets={getTotalAssets} getTotalLiabilities={getTotalLiabilities} getTotalEquity={getTotalEquity} incomeStatement={incomeStatement} journalEntries={journalEntries} accounts={accounts} t={t} />}
-            {activeTab === 'accounting' && <Accounting accounts={accounts} newAccount={newAccount} setNewAccount={setNewAccount} addNewAccount={addNewAccount} t={t} />}
-            {activeTab === 'journal' && <Journal isAdjusting={false} entries={journalEntries} showForm={showJournalForm} setShowForm={setShowJournalForm} newEntry={newEntry} setNewEntry={setNewEntry} accounts={accounts} saveJournalEntry={saveJournalEntry} saveAdjustingEntry={saveAdjustingEntry} resetForm={resetForm} editEntry={editEntry} deleteEntry={deleteEntry} editingEntry={editingEntry} t={t} />}
-            {activeTab === 'adjusting' && <Journal isAdjusting={true} entries={adjustingEntries} showForm={showAdjustingForm} setShowForm={setShowAdjustingForm} newEntry={newEntry} setNewEntry={setNewEntry} accounts={accounts} saveJournalEntry={saveJournalEntry} saveAdjustingEntry={saveAdjustingEntry} resetForm={resetForm} editEntry={editEntry} deleteEntry={deleteEntry} editingEntry={editingEntry} t={t} />}
-            {activeTab === 'ledger' && <GeneralLedger accounts={accounts} journalEntries={journalEntries} adjustingEntries={adjustingEntries} balances={balances} t={t} />}
-            {activeTab === 'trial' && <TrialBalance trialBalanceData={trialBalanceData} t={t} />}
-            {activeTab === 'income' && <IncomeStatement accounts={accounts} balances={balances} incomeStatement={incomeStatement} t={t} />}
-            {activeTab === 'balance' && <BalanceSheet accounts={accounts} balances={balances} getTotalAssets={getTotalAssets} getTotalLiabilities={getTotalLiabilities} getTotalEquity={getTotalEquity} incomeStatement={incomeStatement} t={t} />}
-          </main>
-          <Footer theme={theme} />
+              {activeTab === 'dashboard' && <Dashboard getTotalAssets={getTotalAssets} getTotalLiabilities={getTotalLiabilities} getTotalEquity={getTotalEquity} incomeStatement={incomeStatement} journalEntries={journalEntries} accounts={accounts} t={t} />}
+              {activeTab === 'accounting' && <Accounting accounts={accounts} newAccount={newAccount} setNewAccount={setNewAccount} addNewAccount={addNewAccount} deleteAccount={deleteAccount} t={t} />}
+              {activeTab === 'journal' && <Journal isAdjusting={false} entries={journalEntries} showForm={showJournalForm} setShowForm={setShowJournalForm} newEntry={newEntry} setNewEntry={setNewEntry} accounts={accounts} saveJournalEntry={saveJournalEntry} saveAdjustingEntry={saveAdjustingEntry} resetForm={resetForm} editEntry={editEntry} deleteEntry={deleteEntry} editingEntry={editingEntry} t={t} />}
+              {activeTab === 'adjusting' && <Journal isAdjusting={true} entries={adjustingEntries} showForm={showAdjustingForm} setShowForm={setShowAdjustingForm} newEntry={newEntry} setNewEntry={setNewEntry} accounts={accounts} saveJournalEntry={saveJournalEntry} saveAdjustingEntry={saveAdjustingEntry} resetForm={resetForm} editEntry={editEntry} deleteEntry={deleteEntry} editingEntry={editingEntry} t={t} />}
+              {activeTab === 'ledger' && <GeneralLedger accounts={accounts} journalEntries={journalEntries} adjustingEntries={adjustingEntries} balances={balances} t={t} />}
+              {activeTab === 'trial' && <TrialBalance trialBalanceData={trialBalanceData} t={t} />}
+              {activeTab === 'income' && <IncomeStatement accounts={accounts} balances={balances} incomeStatement={incomeStatement} t={t} />}
+              {activeTab === 'balance' && <BalanceSheet accounts={accounts} balances={balances} getTotalAssets={getTotalAssets} getTotalLiabilities={getTotalLiabilities} getTotalEquity={getTotalEquity} incomeStatement={incomeStatement} t={t} />}
+            </main>
+            <Footer theme={theme} />
+          </div>
         </div>
       </div>
     </div>

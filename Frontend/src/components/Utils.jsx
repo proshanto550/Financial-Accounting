@@ -7,7 +7,7 @@ import {
 export const StatCard = ({ title, value, icon, color, isIncome = false, t }) => (
     <div className={`p-5 rounded-xl ${t.cardBg} ${t.shadow} ${t.border}`}>
         <div className="flex justify-between items-start">
-            <h3 className={`text-sm font-semibold uppercase tracking-wider text-slate-400`}>{title}</h3>
+            <h3 className={`text-xl font-semibold uppercase tracking-wider text-slate-400`}>{title}</h3>
             {icon ? React.createElement(icon, { size: 24, className: color }) : null}
         </div>
         <p className={`text-3xl font-mono mt-2 ${isIncome ? (value >= 0 ? 'text-lime-400' : 'text-red-500') : t.text}`}>
@@ -91,8 +91,8 @@ export const NetIncomeTrendChart = ({ entries, accounts }) => {
     const points = historicalData.map((d, i) => `${getX(i)},${getY(d.netIncome)}`).join(' ');
 
     return (
-        <div className="overflow-x-auto">
-            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[600px]">
+        <div className="overflow-x-auto ml-2">
+            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[600px] pl-2">
                 <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#2D3748" />
                 <line x1={padding} y1={zeroLineY} x2={width - padding} y2={zeroLineY} stroke="#A0AEC0" strokeDasharray="4 4" />
                 <text x={padding - 5} y={getY(maxVal / 1.1)} fontSize="10" fill="#CBD5E0" textAnchor="end">{`$${(maxVal / 1.1).toFixed(0)}`}</text>

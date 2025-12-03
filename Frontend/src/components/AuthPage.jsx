@@ -66,26 +66,26 @@ const AuthPage = ({ onLogin, theme, toggleTheme, t }) => {
                     <h1 className="text-4xl font-black tracking-tighter mb-2 flex items-center justify-center gap-2">
                         <span className={theme === 'dark' ? 'text-lime-400' : 'text-blue-600'}>M.O.N.E.Y.</span>
                     </h1>
-                    <p className={`text-sm font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <p className={`text-lg font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
                         {isLoginView ? 'Sign in to access your dashboard' : 'Create a new account'}
                     </p>
                 </div>
 
-                {successMessage && <div className="mb-4 p-3 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg font-mono text-sm">{successMessage}</div>}
-                {errorMessage && <div className="mb-4 p-3 bg-red-900/50 border border-red-500 text-red-300 rounded-lg flex items-center font-mono text-sm"><AlertTriangle size={16} className="mr-2" />{errorMessage}</div>}
+                {successMessage && <div className="mb-4 p-3 bg-lime-900/50 border border-lime-500 text-lime-300 rounded-lg font-mono text-lg">{successMessage}</div>}
+                {errorMessage && <div className="mb-4 p-3 bg-red-900/50 border border-red-500 text-red-300 rounded-lg flex items-center font-mono text-lg"><AlertTriangle size={16} className="mr-2" />{errorMessage}</div>}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {!isLoginView && (
                         <>
                             <div>
-                                <label className={`block text-xs font-mono mb-1 ${t.text}`}>FULL NAME</label>
+                                <label className={`block text-base font-mono mb-1 ${t.text}`}>FULL NAME</label>
                                 <div className="relative">
                                     <User2Icon size={18} className="absolute left-3 top-3 text-slate-400" />
                                     <input type="text" placeholder="Mijanur Rahman Oli" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={`w-full pl-10 pr-3 py-2 border rounded-lg ${t.input}`} />
                                 </div>
                             </div>
                             <div>
-                                <label className={`block text-xs font-mono mb-1 ${t.text}`}>USERNAME</label>
+                                <label className={`block text-base font-mono mb-1 ${t.text}`}>USERNAME</label>
                                 <div className="relative">
                                     <User size={18} className="absolute left-3 top-3 text-slate-400" />
                                     <input type="text" placeholder="username" required value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} className={`w-full pl-10 pr-3 py-2 border rounded-lg ${t.input}`} />
@@ -94,14 +94,14 @@ const AuthPage = ({ onLogin, theme, toggleTheme, t }) => {
                         </>
                     )}
                     <div>
-                        <label className={`block text-xs font-mono mb-1 ${t.text}`}>EMAIL ADDRESS</label>
+                        <label className={`block text-base font-mono mb-1 ${t.text}`}>EMAIL ADDRESS</label>
                         <div className="relative">
                             <Mail size={18} className="absolute left-3 top-3 text-slate-400" />
                             <input type="email" placeholder="name@example.com" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={`w-full pl-10 pr-3 py-2 border rounded-lg ${t.input}`} />
                         </div>
                     </div>
                     <div>
-                        <label className={`block text-xs font-mono mb-1 ${t.text}`}>PASSWORD</label>
+                        <label className={`block text-base font-mono mb-1 ${t.text}`}>PASSWORD</label>
                         <div className="relative">
                             <Lock size={18} className="absolute left-3 top-3 text-slate-400" />
                             <input

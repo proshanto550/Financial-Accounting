@@ -32,9 +32,9 @@ const Journal = ({
     };
 
     return (
-        <div className={`rounded-xl ${t.cardBg} ${t.shadow} p-6 ${t.border}`}>
+        <div className={`rounded-xl ${t.cardBg} ${t.shadow} p-6 md:p-10 ${t.border}`}>
             <div className="flex justify-between items-center mb-6">
-                <h2 className={`text-2xl font-bold ${t.secondaryAccent}`}>{title}</h2>
+                <h2 className={`text-4xl font-bold ${t.secondaryAccent}`}>{title}</h2>
                 {/* Reset form before showing the new entry form */}
                 <button onClick={() => { resetForm(); setShowForm(true); }} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${t.buttonPrimary}`}><PlusCircle size={18} /> New Entry</button>
             </div>

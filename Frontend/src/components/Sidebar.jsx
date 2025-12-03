@@ -18,9 +18,9 @@ const Sidebar = ({ activeTab, setActiveTab, theme }) => {
     const baseClasses = "flex items-center p-3 rounded-lg w-full text-left transition-colors font-mono tracking-wider";
 
     return (
-        <nav className={`w-64 p-4 space-y-2 flex-shrink-0 ${theme === 'dark' ? 'bg-neutral-900 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
-            <div className="text-xl font-bold mb-6 text-lime-400 border-b border-lime-400/30 pb-2 flex items-center gap-2">
-                <Zap size={20} /> M.O.N.E.Y.
+        <nav className={`w-64 md:w-72 h-full p-4 space-y-2 flex-shrink-0 overflow-y-auto ${theme === 'dark' ? 'bg-neutral-900 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+            <div className="text-3xl font-bold mb-6 text-lime-400 border-b border-lime-400/30 pb-2 flex items-center gap-2">
+                <Zap size={40} /> M.O.N.E.Y.
             </div>
             {navItems.map(item => (
                 <button
@@ -32,7 +32,7 @@ const Sidebar = ({ activeTab, setActiveTab, theme }) => {
                         }`}
                 >
                     <item.icon size={18} className="mr-3" />
-                    <span className="text-sm tracking-widest">{item.label}</span>
+                    <span className="text-md font-bold tracking-widest">{item.label}</span>
                 </button>
             ))}
         </nav>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator } from 'lucide-react';
+import { Zap } from 'lucide-react';
 
 /**
  * Footer component displaying submission details and copyright.
@@ -30,10 +30,10 @@ const Footer = ({ theme }) => {
     const names = [
         "Sheikh Mijanur Rahman Oli",
         "Proshanto Kumer Das",
+        "Muhammad Kawser Azim",
+        "Tanim Sakib",
         "Sanjida Jahan",
-        "Kawser Azim",
-        "Priyanka Chowdhury",
-        "Tanim Sakib"
+        "Priyanka Chowdhury"
     ];
 
     return (
@@ -44,13 +44,11 @@ const Footer = ({ theme }) => {
             </div>
             <div className="max-w-7xl mx-auto px-4">
                 {/* Calculator Icon (Inspired by the calculator icon in the image) */}
-                <Calculator
-                    size={48}
-                    className={`mx-auto mb-4 ${t.iconColor} border-4 p-2 rounded-xl border-current`}
-                />
-
-                {/* Submitted By */}
-                <h3 className={`text-xl font-bold tracking-wider mb-6 ${t.text}`}>Submitted By</h3>
+                <div className='flex justify-center items-center mb-2 gap-3'>
+                    <Zap size={30} className={`mb-2 ${t.iconColor}`} />
+                    {/* Submitted By */}
+                    <h3 className={`text-xl font-bold tracking-wider mb-2  ${t.text}`}>Submitted By</h3>
+                </div>
 
                 {/* List of Names from the image, separated by vertical bars */}
                 <div className={`text-sm font-mono tracking-wide mb-8 ${t.names} flex flex-wrap justify-center items-center gap-x-4 gap-y-2`}>
